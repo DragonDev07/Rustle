@@ -1,11 +1,12 @@
 use select::document::Document;
 use select::predicate::Name;
 use std::collections::HashSet;
+use std::fs;
 use std::io::Read;
 use url::Url;
 
 // Set URL to start Web Crawling at
-pub const ORIGIN_URL: &str = "https://wikipedia.org";
+pub const ORIGIN_URL: &str = "https://rolisz.ro";
 
 /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
 ///
@@ -98,6 +99,11 @@ fn fetch_and_process_links(
 ) -> HashSet<String> {
     let html = get_html(&reqwest_client, url);
     let links = get_links(&html);
+
+    let parsed_url = Url::parse(url).unwrap();
+    let path = parsed_url.path();
+    write_html(path, &html);
+
     println!("Scraped {} - {} Links", url, links.len());
 
     return links;
@@ -109,7 +115,7 @@ fn fetch_and_process_links(
 /// It uses a reqwest blocking client to fetch the HTML content of each URL and extracts links from it.
 /// The process continues until there are no new URLs to visit.
 ///
-/// # Arguments
+/// ## Arguments
 ///
 /// * `origin_links` - A reference to a `HashSet<String>` containing the initial set of URLs to start the iteration.
 /// * `reqwest_client` - A reference to the reqwest blocking client used to make the HTTP requests.
@@ -138,9 +144,18 @@ fn iterate_links(origin_links: &HashSet<String>, reqwest_client: &reqwest::block
     }
 }
 
+fn write_html(path: &str, html_content: &str) {
+    fs::create_dir_all(format!("static{}", path)).unwrap();
+    let _ = fs::write(format!("static{}/index.html", path), html_content);
+}
+
 fn main() {
+    // Declare reqwest blocking client
     let reqwest_client = reqwest::blocking::Client::new();
+
+    // Get HTML of origin url
     let html = get_html(&reqwest_client, ORIGIN_URL);
+    write_html("", &html);
 
     // Get all links from the origin url
     let urls = get_links(&html);
