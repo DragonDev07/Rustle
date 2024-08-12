@@ -3,10 +3,20 @@ use select::predicate::Name;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
+use std::time::Instant;
 use url::Url;
 
-// Set URL to start Web Crawling at
-pub const ORIGIN_URL: &str = "https://rolisz.ro";
+/// The base URL to start web crawling from.
+///
+/// This constant defines the origin URL where the web crawler begins its operation.
+/// All links extracted and processed will be relative to this origin URL.
+///
+/// ## Example
+///
+/// ```
+/// pub const ORIGIN_URL: &str = "https://wikipedia.org";
+/// ```
+pub const ORIGIN_URL: &str = "https://wikipedia.org";
 
 /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
 ///
@@ -144,12 +154,35 @@ fn iterate_links(origin_links: &HashSet<String>, reqwest_client: &reqwest::block
     }
 }
 
+/// Writes the HTML content to a file organized by the given path.
+///
+/// This function creates directories based on the provided path and writes the HTML content
+/// to a file named `index.html` within those directories. The base directory is `static`.
+///
+/// ## Arguments
+///
+/// * `path` - A string slice that holds the path where the HTML content will be saved.
+/// * `html_content` - A string slice that holds the HTML content to be written to the file.
 fn write_html(path: &str, html_content: &str) {
     fs::create_dir_all(format!("static{}", path)).unwrap();
     let _ = fs::write(format!("static{}/index.html", path), html_content);
 }
 
+/// The main function that initializes the web crawler.
+///
+/// This function performs the following steps:
+/// 1. Declares a reqwest blocking client.
+/// 2. Fetches the HTML content of the origin URL.
+/// 3. Writes the HTML content of the origin URL to a file.
+/// 4. Extracts all links from the origin URL's HTML content.
+/// 5. Iterates over all extracted links, fetching and processing each link to discover new links.
+///
+/// The HTML content of each URL is written to a file organized by the URL's path.
+
 fn main() {
+    // Start Runtime
+    let time = Instant::now();
+
     // Declare reqwest blocking client
     let reqwest_client = reqwest::blocking::Client::new();
 
@@ -162,4 +195,6 @@ fn main() {
 
     // Iterate over all links until none are left
     iterate_links(&urls, &reqwest_client);
+
+    println!("Runtime: {}", time.elapsed().as_secs());
 }
