@@ -1,12 +1,9 @@
 [package]
-name = "web_crawler"
-version = "0.1.0"
+name = "Rustle"
+version = "0.0.1"
 edition = "2021"
 
 [dependencies]
 reqwest = { version = "0.12.5", features = ["blocking"] }
-scraper = "0.20.0"
-tokio = { version = "1", features = ["full"] }
 url = "2.5.2"
-rayon = "*"
 select = "*"
