@@ -8,6 +8,8 @@ use std::time::Instant;
 use url::Url;
 extern crate pretty_env_logger;
 
+mod spider;
+
 /// The base URL to start web crawling from.
 ///
 /// This constant defines the origin URL where the web crawler begins its operation.
