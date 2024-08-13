@@ -1,3 +1,4 @@
+use log::info;
 use select::document::Document;
 use select::predicate::Name;
 use std::collections::HashSet;
@@ -5,6 +6,7 @@ use std::fs;
 use std::io::Read;
 use std::time::Instant;
 use url::Url;
+extern crate pretty_env_logger;
 
 /// The base URL to start web crawling from.
 ///
@@ -114,7 +116,7 @@ fn fetch_and_process_links(
     let path = parsed_url.path();
     write_html(path, &html);
 
-    println!("Scraped {} - {} Links", url, links.len());
+    info!("Scraped {} - {} Links", url, links.len());
 
     return links;
 }
@@ -178,10 +180,12 @@ fn write_html(path: &str, html_content: &str) {
 /// 5. Iterates over all extracted links, fetching and processing each link to discover new links.
 ///
 /// The HTML content of each URL is written to a file organized by the URL's path.
-
 fn main() {
     // Start Runtime
     let time = Instant::now();
+
+    // Start Logger
+    pretty_env_logger::init();
 
     // Declare reqwest blocking client
     let reqwest_client = reqwest::blocking::Client::new();
@@ -196,5 +200,5 @@ fn main() {
     // Iterate over all links until none are left
     iterate_links(&urls, &reqwest_client);
 
-    println!("Runtime: {}", time.elapsed().as_secs());
+    info!("Runtime: {}", time.elapsed().as_secs());
 }
