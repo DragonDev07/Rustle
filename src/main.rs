@@ -16,7 +16,7 @@ fn main() {
     pretty_env_logger::init();
 
     // Declare Crawler
-    let crawler = spider::Crawler::new("https://wikipedia.org".to_string(), 3);
+    let crawler = spider::Crawler::new("https://rolisz.ro".to_string(), 6);
 
     // Run Crawler
     crawler.crawl();

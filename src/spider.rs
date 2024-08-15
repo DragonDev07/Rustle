@@ -164,7 +164,7 @@ impl Crawler {
     /// ## Arguments
     ///
     /// * `origin_links` - A reference to a `HashSet<String>` containing the initial set of URLs to start the iteration.
-    /// * `reqwest_client` - A reference to the reqwest blocking client used to make the HTTP requests.
+    /// * `reqwest_client` - A reference to the reqwest blocking client used to make the HTTP requests.    
     fn iterate_links(
         &self,
         origin_links: &HashSet<String>,
@@ -180,17 +180,32 @@ impl Crawler {
             .collect::<HashSet<String>>();
 
         while !(depth >= self.recursion_depth) && !new_urls.is_empty() {
-            let (next_visited_urls, next_new_urls) = new_urls.iter().fold(
-                (visited_urls.clone(), HashSet::new()),
-                |(mut visited, mut new), url| {
+            let (next_visited_urls, next_new_urls): (HashSet<String>, HashSet<String>) = new_urls
+                .par_iter()
+                .map(|url| {
                     let links = Self::fetch_and_process_links(&self, &url, &reqwest_client);
-                    visited.insert(url.clone());
-                    new.extend(links.difference(&visited).cloned());
-                    (visited, new)
-                },
-            );
 
-            visited_urls = next_visited_urls;
+                    return (url.clone(), links);
+                })
+                .fold(
+                    || (HashSet::new(), HashSet::new()),
+                    |(mut visited, mut new), (url, links)| {
+                        visited.insert(url);
+                        new.extend(links.difference(&visited).cloned());
+
+                        return (visited, new);
+                    },
+                )
+                .reduce(
+                    || (HashSet::new(), HashSet::new()),
+                    |(mut visited1, mut new1), (visited2, new2)| {
+                        visited1.extend(visited2);
+                        new1.extend(new2);
+                        return (visited1, new1);
+                    },
+                );
+
+            visited_urls.extend(next_visited_urls);
             new_urls = next_new_urls;
             depth += 1;
             info!("------ DEPTH: {} ------", depth);
