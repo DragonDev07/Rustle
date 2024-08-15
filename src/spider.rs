@@ -1,4 +1,5 @@
 use log::info;
+use rayon::prelude::*;
 use select::document::Document;
 use select::predicate::Name;
 use std::collections::HashSet;
@@ -49,7 +50,7 @@ impl Crawler {
         let urls = Self::get_links(&self, &html);
 
         // Iterate over all links until none are left
-        Self::iterate_links(&self, &urls, &reqwest_client);
+        Self::iterate_links(&self, &urls, &reqwest_client, 0);
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
@@ -168,6 +169,7 @@ impl Crawler {
         &self,
         origin_links: &HashSet<String>,
         reqwest_client: &reqwest::blocking::Client,
+        mut depth: u64,
     ) {
         let mut visited_urls = HashSet::new();
         visited_urls.insert(self.origin_url.to_string());
@@ -177,7 +179,7 @@ impl Crawler {
             .map(|x| x.to_string())
             .collect::<HashSet<String>>();
 
-        while !new_urls.is_empty() {
+        while !(depth >= self.recursion_depth) && !new_urls.is_empty() {
             let (next_visited_urls, next_new_urls) = new_urls.iter().fold(
                 (visited_urls.clone(), HashSet::new()),
                 |(mut visited, mut new), url| {
@@ -190,6 +192,8 @@ impl Crawler {
 
             visited_urls = next_visited_urls;
             new_urls = next_new_urls;
+            depth += 1;
+            info!("------ DEPTH: {} ------", depth);
         }
     }
 

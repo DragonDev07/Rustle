@@ -10,16 +10,17 @@ mod spider;
 /// creates a new instance of the `Crawler` struct, and starts the crawling process.
 fn main() {
     // Start Runtime
-    let time = Instant::now();
+    let runtime = Instant::now();
 
     // Start Logger
     pretty_env_logger::init();
 
     // Declare Crawler
-    let crawler = spider::Crawler::new("https://rolisz.ro".to_string(), 5);
+    let crawler = spider::Crawler::new("https://wikipedia.org".to_string(), 3);
 
     // Run Crawler
     crawler.crawl();
 
-    info!("Runtime: {}", time.elapsed().as_secs());
+    // Print Runtime
+    info!("Runtime: {}s", runtime.elapsed().as_secs());
 }
