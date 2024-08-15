@@ -26,5 +26,5 @@
 - [ ] Use SQLite to store information about websites, instead of downloading HTML
 - [x] Recursion fix, specify depth
 - [ ] `clap` implementation to specify origin url & depth
-- [ ] Parallel / distributed crawling
+- [x] Parallel / distributed crawling
 - [ ] Obey `robots.txt` & Use Google Webcrawler User Agent

@@ -107,16 +107,23 @@ impl Crawler {
     /// An `Option<String>` containing the normalized URL if it is valid and belongs to the same host as `ORIGIN_URL`,
     /// otherwise `None`.
     fn normalize_url(&self, url: &str) -> Option<String> {
+        // Parse the Url with the `Url` crate
         let parsed_url = Url::parse(url);
         match parsed_url {
+            // If the parsed Url is a valid Url
             Ok(parsed_url) => {
+                // If its host matched the origin url, return it, else, skip it
                 if parsed_url.has_host() && parsed_url.host_str().unwrap() == self.origin_url {
                     return Some(url.to_string());
                 } else {
                     return None;
                 }
             }
+            // If the parsed Url is not a valid Url
             Err(_e) => {
+                // If the Url starts with "//" (relative top level Url), normalize it with https
+                // If the Url starts with "/" (relative path Url), normalize it with the origin url
+                // Else, skip the Url
                 if url.starts_with("//") {
                     return Some(format!("https:{}", url));
                 } else if url.starts_with('/') {
@@ -143,9 +150,13 @@ impl Crawler {
         url: &String,
         reqwest_client: &reqwest::blocking::Client,
     ) -> HashSet<String> {
+        // Get HTML from given URL
         let html = Self::get_html(&reqwest_client, url);
+
+        // Extract links from the HTML
         let links = Self::get_links(&self, &html);
 
+        // Parse the URL using the `Url` crate, then write to file
         let parsed_url = Url::parse(url).unwrap();
         let path = parsed_url.path();
         Self::write_html(path, &html);
@@ -171,32 +182,42 @@ impl Crawler {
         reqwest_client: &reqwest::blocking::Client,
         mut depth: u64,
     ) {
+        // Initialize a set to keep track of visited URLs
         let mut visited_urls = HashSet::new();
         visited_urls.insert(self.origin_url.to_string());
 
+        // Fetch new set of URLs to visit, exlcuding visited URLs
         let mut new_urls = origin_links
             .difference(&visited_urls)
             .map(|x| x.to_string())
             .collect::<HashSet<String>>();
 
+        // Loop until the maximum recursion depth is reached, or there are no new URLs to visit
         while !(depth >= self.recursion_depth) && !new_urls.is_empty() {
+            // Use parallel iteration w/ `rayon` crate to process URLs
             let (next_visited_urls, next_new_urls): (HashSet<String>, HashSet<String>) = new_urls
                 .par_iter()
                 .map(|url| {
+                    // Fetch all links from the current URL
                     let links = Self::fetch_and_process_links(&self, &url, &reqwest_client);
 
                     return (url.clone(), links);
                 })
                 .fold(
+                    // Inititalize empty sets for visited and new URLs
                     || (HashSet::new(), HashSet::new()),
                     |(mut visited, mut new), (url, links)| {
+                        // Add the current URl to the visited set
                         visited.insert(url);
+
+                        // Add all newly found links to the new set, exclduing already visited URLs
                         new.extend(links.difference(&visited).cloned());
 
                         return (visited, new);
                     },
                 )
                 .reduce(
+                    // Combine results from different threads
                     || (HashSet::new(), HashSet::new()),
                     |(mut visited1, mut new1), (visited2, new2)| {
                         visited1.extend(visited2);
@@ -205,6 +226,7 @@ impl Crawler {
                     },
                 );
 
+            // Update loop variables
             visited_urls.extend(next_visited_urls);
             new_urls = next_new_urls;
             depth += 1;
@@ -222,7 +244,10 @@ impl Crawler {
     /// * `path` - A string slice that holds the path where the HTML content will be saved.
     /// * `html_content` - A string slice that holds the HTML content to be written to the file.
     fn write_html(path: &str, html_content: &str) {
+        // Create full path to directory if it doesn't already exist
         fs::create_dir_all(format!("static{}", path)).unwrap();
+
+        // Write the content to an index.html file
         let _ = fs::write(format!("static{}/index.html", path), html_content);
     }
 }
