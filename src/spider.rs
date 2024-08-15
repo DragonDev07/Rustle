@@ -7,20 +7,37 @@ use std::io::Read;
 use url::Url;
 extern crate pretty_env_logger;
 
-struct Crawler {
+/// Represents a web crawler with a specified origin URL and recursion depth.
+///
+/// ## Fields
+/// - `origin_url`: The starting URL for the crawler.
+/// - `recursion_depth`: The maximum depth to which the crawler will run.
+pub struct Crawler {
     origin_url: String,
     recursion_depth: u64,
 }
 
 impl Crawler {
-    fn new(origin_url: String, recursion_depth: u64) -> Self {
+    /// Creates a new instance of the `Crawler` struct.
+    ///
+    /// ## Arguments
+    /// * `origin_url` - A `String` representing the starting URL of the crawler.
+    /// * `recursion_depth` - A `u64` representing the maximum depth to which the crawler will run.
+    /// ## Returns
+    ///
+    /// A new instance of the `Crawler` struct.
+    pub fn new(origin_url: String, recursion_depth: u64) -> Self {
         Crawler {
             origin_url,
             recursion_depth,
         }
     }
 
-    fn crawl(&self) {
+    /// Starts the crawling process from the origin URL.
+    ///
+    /// This function initializes a reqwest blocking client, fetches the HTMl content of the origin
+    /// URl, extracts all links from it, and iterates over these links to discover new links.
+    pub fn crawl(&self) {
         // Declare reqwest blocking client
         let reqwest_client = reqwest::blocking::Client::new();
 
@@ -29,10 +46,10 @@ impl Crawler {
         Self::write_html("", &html);
 
         // Get all links from the origin url
-        let urls = Self::get_links(&html);
+        let urls = Self::get_links(&self, &html);
 
         // Iterate over all links until none are left
-        Self::iterate_links(&urls, &reqwest_client);
+        Self::iterate_links(&self, &urls, &reqwest_client);
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
@@ -67,11 +84,11 @@ impl Crawler {
     /// ## Returns
     ///
     /// A `HashSet<String>` containing all the normalized links found in the HTML content.
-    fn get_links(html: &str) -> HashSet<String> {
+    fn get_links(&self, html: &str) -> HashSet<String> {
         return Document::from(html)
             .find(Name("a"))
             .filter_map(|n| n.attr("href"))
-            .filter_map(Self::normalize_url(&self))
+            .filter_map(|url| self.normalize_url(url))
             .collect::<HashSet<String>>();
     }
 
@@ -121,11 +138,12 @@ impl Crawler {
     ///
     /// A `HashSet<String>` containing all the links extracted from the HTML content of the given URL.
     fn fetch_and_process_links(
+        &self,
         url: &String,
         reqwest_client: &reqwest::blocking::Client,
     ) -> HashSet<String> {
         let html = Self::get_html(&reqwest_client, url);
-        let links = Self::get_links(&html);
+        let links = Self::get_links(&self, &html);
 
         let parsed_url = Url::parse(url).unwrap();
         let path = parsed_url.path();
@@ -146,9 +164,13 @@ impl Crawler {
     ///
     /// * `origin_links` - A reference to a `HashSet<String>` containing the initial set of URLs to start the iteration.
     /// * `reqwest_client` - A reference to the reqwest blocking client used to make the HTTP requests.
-    fn iterate_links(origin_links: &HashSet<String>, reqwest_client: &reqwest::blocking::Client) {
+    fn iterate_links(
+        &self,
+        origin_links: &HashSet<String>,
+        reqwest_client: &reqwest::blocking::Client,
+    ) {
         let mut visited_urls = HashSet::new();
-        visited_urls.insert(ORIGIN_URL.to_string());
+        visited_urls.insert(self.origin_url.to_string());
 
         let mut new_urls = origin_links
             .difference(&visited_urls)
@@ -159,7 +181,7 @@ impl Crawler {
             let (next_visited_urls, next_new_urls) = new_urls.iter().fold(
                 (visited_urls.clone(), HashSet::new()),
                 |(mut visited, mut new), url| {
-                    let links = Self::fetch_and_process_links(&url, &reqwest_client);
+                    let links = Self::fetch_and_process_links(&self, &url, &reqwest_client);
                     visited.insert(url.clone());
                     new.extend(links.difference(&visited).cloned());
                     (visited, new)
