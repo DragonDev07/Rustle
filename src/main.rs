@@ -2,6 +2,8 @@ use log::info;
 use std::time::Instant;
 extern crate pretty_env_logger;
 
+mod database;
+mod site;
 mod spider;
 
 /// The main entry point of the Rustle application.

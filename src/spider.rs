@@ -1,4 +1,4 @@
-use log::info;
+use log::{debug, info};
 use rayon::prelude::*;
 use select::document::Document;
 use select::predicate::Name;
@@ -161,7 +161,7 @@ impl Crawler {
         let path = parsed_url.path();
         Self::write_html(path, &html);
 
-        info!("Scraped {} - {} Links", url, links.len());
+        debug!("Scraped {} - {} Links", url, links.len());
 
         return links;
     }
@@ -230,7 +230,7 @@ impl Crawler {
             visited_urls.extend(next_visited_urls);
             new_urls = next_new_urls;
             depth += 1;
-            info!("------ DEPTH: {} ------", depth);
+            debug!("------ DEPTH: {} ------", depth);
         }
     }
 
