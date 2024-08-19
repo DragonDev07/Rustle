@@ -4,10 +4,10 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 pub struct Site {
-    id: Uuid,
-    url: String,
-    crawl_time: DateTime<Utc>,
-    links_to: Vec<Uuid>,
+    pub id: Uuid,
+    pub url: String,
+    pub crawl_time: DateTime<Utc>,
+    pub links_to: Vec<Uuid>,
 }
 
 impl std::fmt::Display for Site {
@@ -17,7 +17,7 @@ impl std::fmt::Display for Site {
 }
 
 impl Site {
-    fn read_into(id: Uuid, database: &Database) -> Option<Self> {
+    pub fn read_into(id: Uuid, database: &Database) -> Option<Self> {
         let query = format!(
             "SELECT url, crawl_time, links_to FROM sites WHERE id = '{}'",
             id
@@ -53,7 +53,7 @@ impl Site {
         return None;
     }
 
-    fn write_into(&self, database: &Database) {
+    pub fn write_into(&self, database: &Database) {
         let links_to_str = self
             .links_to
             .iter()

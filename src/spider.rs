@@ -1,4 +1,7 @@
-use log::{debug, info};
+use crate::database::Database;
+use crate::site::Site;
+use chrono::Utc;
+use log::info;
 use rayon::prelude::*;
 use select::document::Document;
 use select::predicate::Name;
@@ -6,6 +9,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use url::Url;
+use uuid::Uuid;
 extern crate pretty_env_logger;
 
 /// Represents a web crawler with a specified origin URL and recursion depth.
@@ -16,6 +20,7 @@ extern crate pretty_env_logger;
 pub struct Crawler {
     origin_url: String,
     recursion_depth: u64,
+    database: Database,
 }
 
 impl Crawler {
@@ -27,10 +32,11 @@ impl Crawler {
     /// ## Returns
     ///
     /// A new instance of the `Crawler` struct.
-    pub fn new(origin_url: String, recursion_depth: u64) -> Self {
+    pub fn new(origin_url: String, recursion_depth: u64, database_name: &str) -> Self {
         Crawler {
             origin_url,
             recursion_depth,
+            database: Database::new(database_name),
         }
     }
 
@@ -42,9 +48,14 @@ impl Crawler {
         // Declare reqwest blocking client
         let reqwest_client = reqwest::blocking::Client::new();
 
+        // Setup Database
+        let _ = self.database.setup();
+
+        // Save Origin Url to Database
+        Self::write_site(&self, &self.origin_url);
+
         // Get HTML of origin url
         let html = Self::get_html(&reqwest_client, &self.origin_url);
-        Self::write_html("", &html);
 
         // Get all links from the origin url
         let urls = Self::get_links(&self, &html);
@@ -156,12 +167,10 @@ impl Crawler {
         // Extract links from the HTML
         let links = Self::get_links(&self, &html);
 
-        // Parse the URL using the `Url` crate, then write to file
-        let parsed_url = Url::parse(url).unwrap();
-        let path = parsed_url.path();
-        Self::write_html(path, &html);
+        // Write Url to Database
+        Self::write_site(&self, url);
 
-        debug!("Scraped {} - {} Links", url, links.len());
+        info!("Scraped {} - {} Links", url, links.len());
 
         return links;
     }
@@ -230,7 +239,7 @@ impl Crawler {
             visited_urls.extend(next_visited_urls);
             new_urls = next_new_urls;
             depth += 1;
-            debug!("------ DEPTH: {} ------", depth);
+            info!("------ DEPTH: {} ------", depth);
         }
     }
 
@@ -249,5 +258,16 @@ impl Crawler {
 
         // Write the content to an index.html file
         let _ = fs::write(format!("static{}/index.html", path), html_content);
+    }
+
+    fn write_site(&self, url: &str) {
+        let site = Site {
+            id: Uuid::new_v4(),
+            url: url.to_string(),
+            crawl_time: Utc::now(),
+            links_to: Vec::new(),
+        };
+
+        site.write_into(&self.database);
     }
 }

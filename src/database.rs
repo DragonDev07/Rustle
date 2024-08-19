@@ -1,13 +1,15 @@
-use log::{debug, trace};
-use sqlite::Connection;
+use log::trace;
+use sqlite::ConnectionThreadSafe;
+use std::str::FromStr;
+use uuid::Uuid;
 
 pub struct Database {
-    conn: Connection,
+    conn: ConnectionThreadSafe,
 }
 
 impl Database {
     pub fn new(db_name: &str) -> Self {
-        let conn = sqlite::open(format!("{}.db", db_name)).unwrap();
+        let conn = sqlite::Connection::open_thread_safe(format!("{}.db", db_name)).unwrap();
         return Database { conn };
     }
 
@@ -39,7 +41,18 @@ impl Database {
         return self.conn.execute(statement);
     }
 
-    // TODO: Function to retrieve all site Uuids
-    // TODO: Function to read `Site` by id
-    // TODO: Function to write `Site`
+    pub fn get_all_site_uuids(&self) -> Vec<Uuid> {
+        let mut uuids = Vec::new();
+        let query = "SELECT id FROM sites";
+        let mut statement = self.prepare(query).unwrap();
+
+        while let sqlite::State::Row = statement.next().unwrap() {
+            let id_str = statement.read::<String, usize>(0).unwrap();
+            if let Ok(uuid) = Uuid::from_str(&id_str) {
+                uuids.push(uuid);
+            }
+        }
+
+        return uuids;
+    }
 }
