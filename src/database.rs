@@ -1,8 +1,14 @@
 use log::trace;
 use sqlite::ConnectionThreadSafe;
-use std::str::FromStr;
-use uuid::Uuid;
 
+/// Represents a database connection.
+///
+/// This struct encapsulates a thread-safe connection to the database,
+/// allowing for safe concurrent access to the database.
+///
+/// ## Fields
+///
+/// * `conn` - A thread-safe connection to the database.
 pub struct Database {
     conn: ConnectionThreadSafe,
 }
@@ -20,8 +26,7 @@ impl Database {
             .execute(
                 r#"
               CREATE TABLE IF NOT EXISTS sites (
-                id TEXT PRIMARY KEY,
-                url TEXT NOT NULL,
+                url TEXT PRIMARY KEY,
                 crawl_time TEXT NOT NULL,
                 links_to TEXT
               );"#,
@@ -39,20 +44,5 @@ impl Database {
         trace!("Executing SQLite Statement: '{}'", statement);
 
         return self.conn.execute(statement);
-    }
-
-    pub fn get_all_site_uuids(&self) -> Vec<Uuid> {
-        let mut uuids = Vec::new();
-        let query = "SELECT id FROM sites";
-        let mut statement = self.prepare(query).unwrap();
-
-        while let sqlite::State::Row = statement.next().unwrap() {
-            let id_str = statement.read::<String, usize>(0).unwrap();
-            if let Ok(uuid) = Uuid::from_str(&id_str) {
-                uuids.push(uuid);
-            }
-        }
-
-        return uuids;
     }
 }

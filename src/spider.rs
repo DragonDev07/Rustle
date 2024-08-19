@@ -6,10 +6,8 @@ use rayon::prelude::*;
 use select::document::Document;
 use select::predicate::Name;
 use std::collections::HashSet;
-use std::fs;
 use std::io::Read;
 use url::Url;
-use uuid::Uuid;
 extern crate pretty_env_logger;
 
 /// Represents a web crawler with a specified origin URL and recursion depth.
@@ -51,14 +49,14 @@ impl Crawler {
         // Setup Database
         let _ = self.database.setup();
 
-        // Save Origin Url to Database
-        Self::write_site(&self, &self.origin_url);
-
         // Get HTML of origin url
         let html = Self::get_html(&reqwest_client, &self.origin_url);
 
         // Get all links from the origin url
         let urls = Self::get_links(&self, &html);
+
+        // Save Origin Url to Database
+        Self::write_site(&self, &self.origin_url, &urls);
 
         // Iterate over all links until none are left
         Self::iterate_links(&self, &urls, &reqwest_client, 0);
@@ -168,7 +166,7 @@ impl Crawler {
         let links = Self::get_links(&self, &html);
 
         // Write Url to Database
-        Self::write_site(&self, url);
+        Self::write_site(&self, url, &links);
 
         info!("Scraped {} - {} Links", url, links.len());
 
@@ -243,29 +241,20 @@ impl Crawler {
         }
     }
 
-    /// Writes the HTML content to a file organized by the given path.
+    /// Writes a `Site` to the database.
     ///
-    /// This function creates directories based on the provided path and writes the HTML content
-    /// to a file named `index.html` within those directories. The base directory is `static`.
+    /// This function creates a `Site` instance with the given URL and links,
+    /// sets the current time as the crawl time, and writes the `Site` to the database.
     ///
     /// ## Arguments
     ///
-    /// * `path` - A string slice that holds the path where the HTML content will be saved.
-    /// * `html_content` - A string slice that holds the HTML content to be written to the file.
-    fn write_html(path: &str, html_content: &str) {
-        // Create full path to directory if it doesn't already exist
-        fs::create_dir_all(format!("static{}", path)).unwrap();
-
-        // Write the content to an index.html file
-        let _ = fs::write(format!("static{}/index.html", path), html_content);
-    }
-
-    fn write_site(&self, url: &str) {
+    /// * `url` - A string slice that holds the URL of the site.
+    /// * `links_to` - A reference to a `HashSet` containing the URLs that the site links to.
+    fn write_site(&self, url: &str, links_to: &HashSet<String>) {
         let site = Site {
-            id: Uuid::new_v4(),
             url: url.to_string(),
             crawl_time: Utc::now(),
-            links_to: Vec::new(),
+            links_to: links_to.clone(),
         };
 
         site.write_into(&self.database);
