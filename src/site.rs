@@ -1,20 +1,18 @@
 use crate::database::Database;
 use chrono::prelude::*;
+use log::info;
 use std::collections::HashSet;
 
 /// Represents a website with its URL, crawl time, and links to other sites.
 ///
 /// This struct is used to store information about a website, including its URL,
 /// the time it was crawled, and the URLs it links to.
-///
-/// ## Fields
-///
-/// * `url` - A string that holds the URL of the site.
-/// * `crawl_time` - A `DateTime<Utc>` that represents the time the site was crawled.
-/// * `links_to` - A `HashSet<String>` containing the URLs that the site links to.
 pub struct Site {
+    /// A string that holds the URL of a given site.
     pub url: String,
+    /// A `DateTime<Utc>` that represents the time the site was crawled.
     pub crawl_time: DateTime<Utc>,
+    /// A `HashSet<String>` containing the urls that the site links to.
     pub links_to: HashSet<String>,
 }
 
@@ -39,7 +37,7 @@ impl Site {
     /// * `url` - A string slice that holds the URL of the site to be read.
     /// * `database` - A reference to the `Database` from which the site will be read.
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// An `Option<Self>` which is `Some(Site)` if a matching site is found, or `None` if no match is found.
     pub fn read_into(url: &str, database: &Database) -> Option<Self> {
@@ -119,5 +117,19 @@ impl Site {
 
         // Execute query
         database.execute(&query).unwrap();
+    }
+
+    /// Summarizes the database by counting the number of entries in the `sites` table.
+    ///
+    /// This function prepares and executes a SQL query to count the number of entries
+    /// in the `sites` table and logs the result using the `info` log level.
+    pub fn summarize_site_database(database: &Database) {
+        let query = "SELECT COUNT(*) FROM sites";
+        let mut statement = database.prepare(query).unwrap();
+        let _ = statement.next();
+
+        let count = statement.read::<i64, usize>(0).unwrap();
+
+        info!("{} Entries in database", count);
     }
 }

@@ -5,11 +5,8 @@ use sqlite::ConnectionThreadSafe;
 ///
 /// This struct encapsulates a thread-safe connection to the database,
 /// allowing for safe concurrent access to the database.
-///
-/// ## Fields
-///
-/// * `conn` - A thread-safe connection to the database.
 pub struct Database {
+    /// A thread-safe connection to the database.
     conn: ConnectionThreadSafe,
 }
 
@@ -23,7 +20,7 @@ impl Database {
     ///
     /// * `db_name` - A string slice that holds the name of the database file (without the `.db` extension).
     ///
-    /// # Returns
+    /// ## Returns
     ///
     /// A new `Database` instance with an open connection to the specified database.
     pub fn new(db_name: &str) -> Self {
@@ -91,19 +88,5 @@ impl Database {
         trace!("Executing SQLite Statement: '{}'", statement);
 
         return self.conn.execute(statement);
-    }
-
-    /// Summarizes the database by counting the number of entries in the `sites` table.
-    ///
-    /// This function prepares and executes a SQL query to count the number of entries
-    /// in the `sites` table and logs the result using the `info` log level.
-    pub fn summarize_database(&self) {
-        let query = "SELECT COUNT(*) FROM sites";
-        let mut statement = self.prepare(query).unwrap();
-        let _ = statement.next();
-
-        let count = statement.read::<i64, usize>(0).unwrap();
-
-        info!("{} Entries in database", count);
     }
 }

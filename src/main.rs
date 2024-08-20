@@ -1,6 +1,5 @@
-use directories::BaseDirs;
 use log::info;
-use std::{fs, time::Instant};
+use std::time::Instant;
 extern crate pretty_env_logger;
 
 mod config;
@@ -14,16 +13,11 @@ mod spider;
 /// creates a new instance of the `Crawler` struct, and starts the crawling process.
 fn main() {
     // Get Config Values
-    info!("Getting Config Values");
-    let base_dirs = BaseDirs::new().unwrap();
-    let config_path = format!("{}/Rustle/config.toml", base_dirs.config_dir().display());
-    let config: config::Config = toml::from_str(&fs::read_to_string(&config_path).expect(
-        &format!("No config file! Please create config at {}", config_path),
-    ))
-    .unwrap();
+    info!("Getting config values");
+    let config = config::Config::new();
 
     // Start Runtime & Init Logger
-    info!("Initializing Rustle Webcrawler");
+    info!("Initializing rustle webcrawler");
     let runtime = Instant::now();
     pretty_env_logger::init();
 

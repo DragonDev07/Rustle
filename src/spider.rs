@@ -11,13 +11,12 @@ use url::Url;
 extern crate pretty_env_logger;
 
 /// Represents a web crawler with a specified origin URL and recursion depth.
-///
-/// ## Fields
-/// - `origin_url`: The starting URL for the crawler.
-/// - `recursion_depth`: The maximum depth to which the crawler will run.
 pub struct Crawler {
+    /// The starting URL for the crawler.
     origin_url: String,
+    /// The maximum depth to which the crawler will run.
     recursion_depth: u64,
+    /// The database that the crawler will store sites in.
     database: Database,
 }
 
@@ -67,7 +66,7 @@ impl Crawler {
         Self::iterate_links(&self, &urls, &reqwest_client, 0);
 
         // Print Database Summary
-        self.database.summarize_database();
+        Site::summarize_site_database(&self.database);
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
