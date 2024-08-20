@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 reqwest = { version = "0.12.5", features = ["blocking"] }
 uuid = { version = "1.10.0", features = ["v4"] }
+serde = { version = "1.0.208", features = ["derive"] }
 url = "2.5.2"
 select = "0.6.0"
 log = "0.4.22"
@@ -13,3 +14,5 @@ pretty_env_logger = "0.5.0"
 rayon = "1.10.0"
 chrono = "0.4.38"
 sqlite = "0.36.1"
+toml = "0.8.19"
+directories = "5.0.1"
