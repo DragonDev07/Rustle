@@ -1,4 +1,4 @@
-use log::trace;
+use log::{info, trace};
 use sqlite::ConnectionThreadSafe;
 
 /// Represents a database connection.
@@ -28,6 +28,7 @@ impl Database {
     /// A new `Database` instance with an open connection to the specified database.
     pub fn new(db_name: &str) -> Self {
         let conn = sqlite::Connection::open_thread_safe(format!("{}.db", db_name)).unwrap();
+        info!("Opened database connection to '{}'.db'", db_name);
         return Database { conn };
     }
 
@@ -41,7 +42,7 @@ impl Database {
     ///
     /// This function will log a trace message indicating that the table setup is in progress.
     pub fn setup(&self) {
-        trace!("Setting Up SQLite Table");
+        trace!("Setting up SQLite table 'sites'");
 
         self.conn
             .execute(
