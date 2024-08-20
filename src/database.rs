@@ -40,15 +40,26 @@ impl Database {
     /// This function will log a trace message indicating that the table setup is in progress.
     pub fn setup(&self) {
         trace!("Setting up SQLite table 'sites'");
-
         self.conn
             .execute(
                 r#"
-              CREATE TABLE IF NOT EXISTS sites (
-                url TEXT PRIMARY KEY,
-                crawl_time TEXT NOT NULL,
-                links_to TEXT
-              );"#,
+                CREATE TABLE IF NOT EXISTS sites (
+                    url TEXT PRIMARY KEY,
+                    crawl_time TEXT NOT NULL,
+                    links_to TEXT
+                );"#,
+            )
+            .unwrap();
+
+        trace!("Setting up SQLite table 'domains'");
+        self.conn
+            .execute(
+                r#"
+                CREATE TABLE IF NOT EXISTS domains (
+                    domain TEXT PRIMARY KEY,
+                    crawl_time TEXT NOT NULL,
+                    robots TEXT
+                );"#,
             )
             .unwrap();
     }

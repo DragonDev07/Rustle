@@ -186,6 +186,27 @@ impl Crawler {
         return links;
     }
 
+    /// Checks if a URL exists in the database and its crawl_time.
+    ///
+    /// ## Arguments
+    ///
+    /// * `url` - A string slice that holds the URL of the site.
+    ///
+    /// ## Returns
+    ///
+    /// A boolean indicating whether the URL should be skipped.
+    pub fn should_skip_url(&self, url: &str) -> bool {
+        if let Some(site) = Site::read_into(url, &self.database) {
+            let one_day_ago = Utc::now() - chrono::Duration::days(1);
+            if site.crawl_time > one_day_ago {
+                trace!("Skipping cached URL: {}", url);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// Iterates through the given set of origin links, fetching and processing each link to discover new links.
     ///
     /// This function maintains a set of visited URLs to avoid processing the same URL multiple times.
@@ -223,21 +244,27 @@ impl Crawler {
             let (next_visited_urls, next_new_urls): (HashSet<String>, HashSet<String>) = new_urls
                 .par_iter()
                 .map(|url| {
+                    // Check if site is cached and can be skipped
+                    if self.should_skip_url(url) {
+                        return None;
+                    }
+
                     // Fetch all links from the current URL
                     let links = Self::fetch_and_process_links(&self, &url, &reqwest_client);
 
-                    return (url.clone(), links);
+                    return Some((url.clone(), links));
                 })
                 .fold(
                     // Inititalize empty sets for visited and new URLs
                     || (HashSet::new(), HashSet::new()),
-                    |(mut visited, mut new), (url, links)| {
-                        // Add the current URl to the visited set
-                        visited.insert(url);
+                    |(mut visited, mut new), opt| {
+                        if let Some((url, links)) = opt {
+                            // Add the current URl to the visited set
+                            visited.insert(url);
 
-                        // Add all newly found links to the new set, exclduing already visited URLs
-                        new.extend(links.difference(&visited).cloned());
-
+                            // Add all newly found links to the new set, exclduing already visited URLs
+                            new.extend(links.difference(&visited).cloned());
+                        }
                         return (visited, new);
                     },
                 )
@@ -281,4 +308,6 @@ impl Crawler {
         // Call method to write Site struct to database
         site.write_into(&self.database);
     }
+
+    // TODO: Function to write domain & robots to 'domains' table
 }

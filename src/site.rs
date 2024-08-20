@@ -53,13 +53,11 @@ impl Site {
         // Iterate over the rows returned by the query (should only be one, but need to return none
         // if no rows are returned)
         while let sqlite::State::Row = statement.next().unwrap() {
-            // Read the URL from the first column of the current row
-            let url: String = statement.read::<String, usize>(0).unwrap();
-            // Read the crawl time from the second column of the current row
-            let crawl_time_str: String = statement.read::<String, usize>(1).unwrap();
+            // Read the crawl time from the first column of the current row
+            let crawl_time_str: String = statement.read::<String, usize>(0).unwrap();
 
-            // Read the links to other sites from the third column of the current row
-            let links_to_str: String = statement.read::<String, usize>(2).unwrap();
+            // Read the links to other sites from the second column of the current row
+            let links_to_str: String = statement.read::<String, usize>(1).unwrap();
 
             // Parse the crawl time string into a DateTime<Utc> object
             let crawl_time = DateTime::parse_from_rfc3339(&crawl_time_str)
