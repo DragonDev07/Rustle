@@ -92,4 +92,18 @@ impl Database {
 
         return self.conn.execute(statement);
     }
+
+    /// Summarizes the database by counting the number of entries in the `sites` table.
+    ///
+    /// This function prepares and executes a SQL query to count the number of entries
+    /// in the `sites` table and logs the result using the `info` log level.
+    pub fn summarize_database(&self) {
+        let query = "SELECT COUNT(*) FROM sites";
+        let mut statement = self.prepare(query).unwrap();
+        let _ = statement.next();
+
+        let count = statement.read::<i64, usize>(0).unwrap();
+
+        info!("{} Entries in database", count);
+    }
 }

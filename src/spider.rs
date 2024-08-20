@@ -1,7 +1,7 @@
 use crate::database::Database;
 use crate::site::Site;
 use chrono::Utc;
-use log::info;
+use log::{info, trace};
 use rayon::prelude::*;
 use select::document::Document;
 use select::predicate::Name;
@@ -43,6 +43,11 @@ impl Crawler {
     /// This function initializes a reqwest blocking client, fetches the HTMl content of the origin
     /// URl, extracts all links from it, and iterates over these links to discover new links.
     pub fn crawl(&self) {
+        info!(
+            "Starting crawl process from origin URL: {}",
+            self.origin_url
+        );
+
         // Declare reqwest blocking client
         let reqwest_client = reqwest::blocking::Client::new();
 
@@ -60,6 +65,9 @@ impl Crawler {
 
         // Iterate over all links until none are left
         Self::iterate_links(&self, &urls, &reqwest_client, 0);
+
+        // Print Database Summary
+        self.database.summarize_database();
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
@@ -75,6 +83,7 @@ impl Crawler {
     ///
     /// A `String` containing the HTML content of the given URL.
     fn get_html(reqwest_client: &reqwest::blocking::Client, url: &str) -> String {
+        trace!("Fetching HTML content for URL: {}", url);
         let mut site = reqwest_client.get(url).send().unwrap();
         let mut html = String::new();
         site.read_to_string(&mut html).unwrap();
@@ -95,6 +104,7 @@ impl Crawler {
     ///
     /// A `HashSet<String>` containing all the normalized links found in the HTML content.
     fn get_links(&self, html: &str) -> HashSet<String> {
+        trace!("Extracting links from HTML content");
         return Document::from(html)
             .find(Name("a"))
             .filter_map(|n| n.attr("href"))
@@ -116,6 +126,8 @@ impl Crawler {
     /// An `Option<String>` containing the normalized URL if it is valid and belongs to the same host as `ORIGIN_URL`,
     /// otherwise `None`.
     fn normalize_url(&self, url: &str) -> Option<String> {
+        trace!("Normalizing URL: {}", url);
+
         // Parse the Url with the `Url` crate
         let parsed_url = Url::parse(url);
         match parsed_url {
@@ -159,6 +171,8 @@ impl Crawler {
         url: &String,
         reqwest_client: &reqwest::blocking::Client,
     ) -> HashSet<String> {
+        trace!("Fetching and processing links for URL: {}", url);
+
         // Get HTML from given URL
         let html = Self::get_html(&reqwest_client, url);
 
@@ -168,7 +182,7 @@ impl Crawler {
         // Write Url to Database
         Self::write_site(&self, url, &links);
 
-        info!("Scraped {} - {} Links", url, links.len());
+        trace!("Scraped {} - {} Links", url, links.len());
 
         return links;
     }
@@ -189,6 +203,11 @@ impl Crawler {
         reqwest_client: &reqwest::blocking::Client,
         mut depth: u64,
     ) {
+        info!(
+            "Starting link iteration with target depth: {}",
+            self.recursion_depth
+        );
+
         // Initialize a set to keep track of visited URLs
         let mut visited_urls = HashSet::new();
         visited_urls.insert(self.origin_url.to_string());
@@ -237,7 +256,7 @@ impl Crawler {
             visited_urls.extend(next_visited_urls);
             new_urls = next_new_urls;
             depth += 1;
-            info!("------ DEPTH: {} ------", depth);
+            trace!("------ DEPTH: {} ------", depth);
         }
     }
 
@@ -251,6 +270,8 @@ impl Crawler {
     /// * `url` - A string slice that holds the URL of the site.
     /// * `links_to` - A reference to a `HashSet` containing the URLs that the site links to.
     fn write_site(&self, url: &str, links_to: &HashSet<String>) {
+        trace!("Writing site to database for URL: {}", url);
+
         // Declare a `Site` struct to hold information
         let site = Site {
             url: url.to_string(),
