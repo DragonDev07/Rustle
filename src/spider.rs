@@ -251,12 +251,14 @@ impl Crawler {
     /// * `url` - A string slice that holds the URL of the site.
     /// * `links_to` - A reference to a `HashSet` containing the URLs that the site links to.
     fn write_site(&self, url: &str, links_to: &HashSet<String>) {
+        // Declare a `Site` struct to hold information
         let site = Site {
             url: url.to_string(),
             crawl_time: Utc::now(),
             links_to: links_to.clone(),
         };
 
+        // Call method to write Site struct to database
         site.write_into(&self.database);
     }
 }
