@@ -4,6 +4,8 @@ use crate::site::Site;
 use chrono::Utc;
 use log::{info, trace};
 use rayon::prelude::*;
+use robots_txt::matcher::SimpleMatcher;
+use robots_txt::Robots;
 use select::document::Document;
 use select::predicate::Name;
 use std::collections::HashSet;
@@ -69,7 +71,6 @@ impl Crawler {
             .host_str()
             .unwrap()
             .to_string();
-        info!("Origin Domain: {}", domain);
         if let Some(robots) = self.get_robots(&domain, &reqwest_client) {
             Self::write_domain(&self, &domain, &robots);
         }
@@ -199,7 +200,8 @@ impl Crawler {
         return links;
     }
 
-    /// Checks if a URL exists in the database and its crawl_time.
+    /// Checks if a URL exists in the database and if its crawl_time is less than a day old, skips
+    /// it.
     ///
     /// ## Arguments
     ///
@@ -208,7 +210,7 @@ impl Crawler {
     /// ## Returns
     ///
     /// A boolean indicating whether the URL should be skipped.
-    pub fn should_skip_url(&self, url: &str) -> bool {
+    pub fn should_skip_cached_url(&self, url: &str) -> bool {
         if let Some(site) = Site::read_into(url, &self.database) {
             let one_day_ago = Utc::now() - chrono::Duration::days(1);
             if site.crawl_time > one_day_ago {
@@ -218,6 +220,45 @@ impl Crawler {
         }
 
         return false;
+    }
+
+    /// Checks if a URL is allowed to be scraped based on the robots.txt rules.
+    ///
+    /// ## Arguments
+    ///
+    /// * `url` - A string slice that holds the URL to be checked.
+    ///
+    /// ## Returns
+    ///
+    /// A boolean indicating whether the URL is allowed to be scraped.    
+    fn is_allowed_to_scrape(&self, url: &str) -> bool {
+        let parsed_url = Url::parse(url).unwrap();
+        let path = parsed_url.path().to_string();
+        let domain = parsed_url.host_str().unwrap().to_string();
+
+        // Check if robots.txt is already in the database
+        let robots_txt = if let Some(domain_data) = Domain::read_into(&domain, &self.database) {
+            domain_data.robots
+        } else {
+            // Fetch robots.txt from the domain
+            let robots = self.get_robots(&domain, &reqwest::blocking::Client::new());
+            if let Some(robots_content) = robots {
+                // Save robots.txt to the database
+                self.write_domain(&domain, &robots_content);
+                robots_content
+            } else {
+                String::new()
+            }
+        };
+
+        // Parse robots.txt and check if the URL is allowed
+        let robots = Robots::from_str_lossy(&robots_txt);
+        let matcher = SimpleMatcher::new(&robots.choose_section("Rustle").rules);
+        let allowed = matcher.check_path(&path);
+
+        trace!("URL: {} - Allowed? {}", url, allowed);
+
+        return allowed;
     }
 
     /// Iterates through the given set of origin links, fetching and processing each link to discover new links.
@@ -258,7 +299,7 @@ impl Crawler {
                 .par_iter()
                 .map(|url| {
                     // Check if site is cached and can be skipped
-                    if self.should_skip_url(url) {
+                    if self.should_skip_cached_url(url) && !self.is_allowed_to_scrape(url) {
                         return None;
                     }
 
@@ -299,6 +340,17 @@ impl Crawler {
         }
     }
 
+    /// Fetches the `robots.txt` file for a given domain.
+    ///
+    /// ## Arguments
+    ///
+    /// * `domain` - A string slice that holds the domain name.
+    /// * `reqwest_client` - A reference to a `reqwest::blocking::Client` used to make the HTTP request.
+    ///
+    /// ## Returns
+    ///
+    /// An `Option<String>` which contains the content of the `robots.txt` file if the request is successful,
+    /// or `None` if the request fails or the file does not exist.
     pub fn get_robots(
         &self,
         domain: &str,
@@ -341,6 +393,15 @@ impl Crawler {
         site.write_into(&self.database);
     }
 
+    /// Writes a `Domain` to the database.
+    ///
+    /// This function creates a `Domain` instance with the given domain and robots.txt string,
+    /// sets the current time as the crawl time, and writes the `Domain` to the database.
+    ///
+    /// ## Arguments
+    ///
+    /// * `domain` - A string slice that holds the domain of the site. (Fomratted as "example.com")
+    /// * `robots` - A string slice that holds the contents of the domain's robots.txt
     fn write_domain(&self, domain: &str, robots: &str) {
         trace!("Writing domain to database for domain: {}", domain);
 

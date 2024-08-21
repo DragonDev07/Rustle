@@ -17,6 +17,15 @@ pub struct Config {
 }
 
 impl Config {
+    /// Creates a new instance of the configuration by reading from the config file.
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the configuration file does not exist or cannot be read.
+    ///
+    /// ## Returns
+    ///
+    /// A new `Config` instance containing data from `cargo.toml`
     pub fn new() -> Self {
         let base_dirs = BaseDirs::new().unwrap();
         let config_path = format!("{}/Rustle/config.toml", base_dirs.config_dir().display());
