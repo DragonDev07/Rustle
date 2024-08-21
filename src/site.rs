@@ -121,13 +121,13 @@ impl Site {
     ///
     /// This function prepares and executes a SQL query to count the number of entries
     /// in the `sites` table and logs the result using the `info` log level.
-    pub fn summarize_site_database(database: &Database) {
+    pub fn summarize_site_table(database: &Database) {
         let query = "SELECT COUNT(*) FROM sites";
         let mut statement = database.prepare(query).unwrap();
         let _ = statement.next();
 
         let count = statement.read::<i64, usize>(0).unwrap();
 
-        info!("{} Entries in database", count);
+        info!("{} Entries in site table", count);
     }
 }

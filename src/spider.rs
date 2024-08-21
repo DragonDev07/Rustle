@@ -1,4 +1,5 @@
 use crate::database::Database;
+use crate::domain::Domain;
 use crate::site::Site;
 use chrono::Utc;
 use log::{info, trace};
@@ -59,14 +60,26 @@ impl Crawler {
         // Get all links from the origin url
         let urls = Self::get_links(&self, &html);
 
-        // Save Origin Url to Database
+        // Save origin URL to database
         Self::write_site(&self, &self.origin_url, &urls);
+
+        // Fetch and store robots.txt
+        let domain = Url::parse(&self.origin_url)
+            .unwrap()
+            .host_str()
+            .unwrap()
+            .to_string();
+        info!("Origin Domain: {}", domain);
+        if let Some(robots) = self.get_robots(&domain, &reqwest_client) {
+            Self::write_domain(&self, &domain, &robots);
+        }
 
         // Iterate over all links until none are left
         Self::iterate_links(&self, &urls, &reqwest_client, 0);
 
         // Print Database Summary
-        Site::summarize_site_database(&self.database);
+        Site::summarize_site_table(&self.database);
+        Domain::summarize_domain_table(&self.database);
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
@@ -286,6 +299,25 @@ impl Crawler {
         }
     }
 
+    pub fn get_robots(
+        &self,
+        domain: &str,
+        reqwest_client: &reqwest::blocking::Client,
+    ) -> Option<String> {
+        let robots_url = format!("https://{}/robots.txt", domain);
+        match reqwest_client.get(&robots_url).send() {
+            Ok(response) => {
+                if response.status().is_success() {
+                    return response.text().ok();
+                }
+            }
+            Err(e) => {
+                trace!("Failed to fetch robots.txt for {}: {}", domain, e);
+            }
+        }
+        return None;
+    }
+
     /// Writes a `Site` to the database.
     ///
     /// This function creates a `Site` instance with the given URL and links,
@@ -309,5 +341,15 @@ impl Crawler {
         site.write_into(&self.database);
     }
 
-    // TODO: Function to write domain & robots to 'domains' table
+    fn write_domain(&self, domain: &str, robots: &str) {
+        trace!("Writing domain to database for domain: {}", domain);
+
+        let domain = Domain {
+            domain: domain.to_string(),
+            crawl_time: Utc::now(),
+            robots: robots.to_string(),
+        };
+
+        domain.write_into(&self.database);
+    }
 }
