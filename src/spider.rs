@@ -111,8 +111,17 @@ impl Crawler {
             return None;
         }
 
-        // Fetch the HTML content
-        let mut site = reqwest_client.get(url).send().unwrap();
+        // Fetch the site and make sure it accepts connection
+        let response = reqwest_client.get(url).send();
+        let mut site = match response {
+            Ok(resp) => resp,
+            Err(e) => {
+                warn!("Failed to fetch URL: {}: {}", url, e);
+                return None;
+            }
+        };
+
+        // Fetch HTML content
         let mut html = String::new();
         if let Err(e) = site.read_to_string(&mut html) {
             warn!(
