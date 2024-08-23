@@ -32,7 +32,10 @@ impl Domain {
 
         while let sqlite::State::Row = statement.next().unwrap() {
             let crawl_time_str: String = statement.read::<String, usize>(0).unwrap();
-            let robots: String = statement.read::<String, usize>(1).unwrap();
+            let robots: String = statement
+                .read::<String, usize>(1)
+                .unwrap()
+                .replace("''", "'");
 
             let crawl_time = DateTime::parse_from_rfc3339(&crawl_time_str)
                 .unwrap()
@@ -59,9 +62,10 @@ impl Domain {
     pub fn write_into(&self, database: &Database) {
         let crawl_time_str = self.crawl_time.to_rfc3339();
 
-        let query = format!(
+        let query =
+            format!(
             "INSERT OR REPLACE INTO domains (domain, crawl_time, robots) VALUES ('{}', '{}', '{}')",
-            self.domain, crawl_time_str, self.robots
+            self.domain, crawl_time_str, self.robots.replace("'", "''")
         );
 
         database.execute(&query).unwrap();

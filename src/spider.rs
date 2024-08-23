@@ -2,7 +2,7 @@ use crate::database::Database;
 use crate::domain::Domain;
 use crate::site::Site;
 use chrono::Utc;
-use log::{info, trace};
+use log::{info, trace, warn};
 use rayon::prelude::*;
 use robots_txt::matcher::SimpleMatcher;
 use robots_txt::Robots;
@@ -57,7 +57,13 @@ impl Crawler {
         let _ = self.database.setup();
 
         // Get HTML of origin url
-        let html = Self::get_html(&reqwest_client, &self.origin_url);
+        let html = match Self::get_html(&reqwest_client, &self.origin_url) {
+            Some(content) => content,
+            None => {
+                warn!("Skipping URL with unsupported scheme: {}", self.origin_url);
+                return;
+            }
+        };
 
         // Get all links from the origin url
         let urls = Self::get_links(&self, &html);
@@ -95,13 +101,28 @@ impl Crawler {
     /// ## Returns
     ///
     /// A `String` containing the HTML content of the given URL.
-    fn get_html(reqwest_client: &reqwest::blocking::Client, url: &str) -> String {
+    fn get_html(reqwest_client: &reqwest::blocking::Client, url: &str) -> Option<String> {
         trace!("Fetching HTML content for URL: {}", url);
+
+        // Parse the URL to check its scheme
+        let parsed_url = Url::parse(url).unwrap();
+        if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
+            warn!("Unsupported URL scheme {}", parsed_url.scheme());
+            return None;
+        }
+
+        // Fetch the HTML content
         let mut site = reqwest_client.get(url).send().unwrap();
         let mut html = String::new();
-        site.read_to_string(&mut html).unwrap();
+        if let Err(e) = site.read_to_string(&mut html) {
+            warn!(
+                "Failed to read response as valid UTF-8 for URL: {}: {}",
+                url, e
+            );
+            return None;
+        }
 
-        return html;
+        return Some(html);
     }
 
     /// Extracts and normalizes all the links from the given HTML content.
@@ -147,7 +168,7 @@ impl Crawler {
             // If the parsed Url is a valid Url
             Ok(parsed_url) => {
                 // If its host matched the origin url, return it, else, skip it
-                if parsed_url.has_host() && parsed_url.host_str().unwrap() == self.origin_url {
+                if parsed_url.has_host() {
                     return Some(url.to_string());
                 } else {
                     return None;
@@ -187,7 +208,13 @@ impl Crawler {
         trace!("Fetching and processing links for URL: {}", url);
 
         // Get HTML from given URL
-        let html = Self::get_html(&reqwest_client, url);
+        let html = match Self::get_html(&reqwest_client, url) {
+            Some(content) => content,
+            None => {
+                warn!("Skipping URL with unsupported scheme: {}", url);
+                return HashSet::new();
+            }
+        };
 
         // Extract links from the HTML
         let links = Self::get_links(&self, &html);

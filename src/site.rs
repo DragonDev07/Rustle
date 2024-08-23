@@ -44,7 +44,7 @@ impl Site {
         // Declare SQLite Query to get all entries where the URL valie equal to the given URL
         let query = format!(
             "SELECT crawl_time, links_to FROM sites WHERE url = '{}'",
-            url
+            url.replace("'", "''")
         );
 
         // Prepare Query
@@ -69,6 +69,7 @@ impl Site {
                 HashSet::new()
             } else {
                 links_to_str
+                    .replace("''", "'")
                     .split(',')
                     .map(|s| s.trim().to_string())
                     .collect()
@@ -76,7 +77,7 @@ impl Site {
 
             // Return a `Site` instance with the retrieved data
             return Some(Self {
-                url: url.to_string(),
+                url: url.to_string().replace("''", "'"),
                 crawl_time,
                 links_to,
             });
@@ -108,9 +109,10 @@ impl Site {
         let crawl_time_str = self.crawl_time.to_rfc3339();
 
         // Declare SQLite query
-        let query = format!(
+        let query =
+            format!(
             "INSERT OR REPLACE INTO sites (url, crawl_time, links_to) VALUES ('{}', '{}', '{}')",
-            self.url, crawl_time_str, links_to_str
+            self.url.replace("'", "''"), crawl_time_str, links_to_str.replace("'", "''")
         );
 
         // Execute query
