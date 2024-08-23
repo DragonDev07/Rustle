@@ -5,6 +5,7 @@ extern crate pretty_env_logger;
 mod config;
 mod database;
 mod domain;
+mod error;
 mod site;
 mod spider;
 

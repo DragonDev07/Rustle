@@ -1152,6 +1152,7 @@ dependencies = [
  "select",
  "serde",
  "sqlite",
+ "thiserror",
  "toml",
  "url",
  "uuid",

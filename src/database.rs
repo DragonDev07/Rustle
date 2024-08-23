@@ -1,3 +1,4 @@
+use crate::error::Errors;
 use log::{info, trace};
 use sqlite::ConnectionThreadSafe;
 
@@ -23,10 +24,16 @@ impl Database {
     /// ## Returns
     ///
     /// A new `Database` instance with an open connection to the specified database.
-    pub fn new(db_name: &str) -> Self {
-        let conn = sqlite::Connection::open_thread_safe(format!("{}.db", db_name)).unwrap();
+    pub fn new(db_name: &str) -> Result<Self, Errors> {
+        let conn =
+            sqlite::Connection::open_thread_safe(format!("{}.db", db_name)).map_err(|_| {
+                Errors::DatabaseError(format!(
+                    "Failed to open SQLite thread safe connection to db {}",
+                    db_name
+                ))
+            })?;
         info!("Opened database connection to '{}'.db'", db_name);
-        return Database { conn };
+        return Ok(Database { conn });
     }
 
     /// Sets up the SQLite table for storing site data.
