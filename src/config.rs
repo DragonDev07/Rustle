@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use directories::BaseDirs;
 use serde::Deserialize;
 use std::fs;
@@ -17,24 +18,31 @@ pub struct Config {
 }
 
 impl Config {
-    /// Creates a new instance of the configuration by reading from the config file.
+    /// Creates a new `Config` instance by reading from the configuration file.
     ///
-    /// ## Panics
+    /// This function reads the configuration file located at `config.toml` and parses its contents
+    /// into a `Config` struct.
     ///
-    /// This function will panic if the configuration file does not exist or cannot be read.
+    /// # Returns
     ///
-    /// ## Returns
+    /// A `Result` containing a new `Config` instance with data from the configuration file,
+    /// or an error if the file cannot be read or parsed.
     ///
-    /// A new `Config` instance containing data from `cargo.toml`
-    pub fn new() -> Self {
-        let base_dirs = BaseDirs::new().unwrap();
+    /// # Errors
+    ///
+    /// This function will return an error if it fails to read or parse the configuration file.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the base directories cannot be determined.    
+    pub fn new() -> Result<Self> {
+        let base_dirs = BaseDirs::new().context("Failed to get base directories")?;
         let config_path = format!("{}/Rustle/config.toml", base_dirs.config_dir().display());
-        let config: Self = toml::from_str(&fs::read_to_string(&config_path).expect(&format!(
-            "No config file! Please create config at {}",
-            config_path
-        )))
-        .unwrap();
+        let config_str = fs::read_to_string(&config_path)
+            .with_context(|| format!("Failed to read config file at {}", config_path))?;
+        let config: Self = toml::from_str(&config_str)
+            .with_context(|| format!("Failed to parse config file at {}", config_path))?;
 
-        return config;
+        return Ok(config);
     }
 }
