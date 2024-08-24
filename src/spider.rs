@@ -1,6 +1,7 @@
 use crate::database::Database;
 use crate::domain::Domain;
 use crate::site::Site;
+use anyhow::Result;
 use chrono::Utc;
 use log::{info, trace, warn};
 use rayon::prelude::*;
@@ -32,12 +33,12 @@ impl Crawler {
     /// ## Returns
     ///
     /// A new instance of the `Crawler` struct.
-    pub fn new(origin_url: String, recursion_depth: u64, database_name: &str) -> Self {
-        Crawler {
+    pub fn new(origin_url: String, recursion_depth: u64, database_name: &str) -> Result<Self> {
+        Ok(Crawler {
             origin_url,
             recursion_depth,
-            database: Database::new(database_name),
-        }
+            database: Database::new(database_name)?,
+        })
     }
 
     /// Starts the crawling process from the origin URL.
@@ -85,8 +86,8 @@ impl Crawler {
         Self::iterate_links(&self, &urls, &reqwest_client, 0);
 
         // Print Database Summary
-        Site::summarize_site_table(&self.database);
-        Domain::summarize_domain_table(&self.database);
+        let _ = Site::summarize_site_table(&self.database);
+        let _ = Domain::summarize_domain_table(&self.database);
     }
 
     /// Fetches the HTML content of the given URL using the provided reqwest blocking client.
@@ -246,16 +247,16 @@ impl Crawler {
     /// ## Returns
     ///
     /// A boolean indicating whether the URL should be skipped.
-    pub fn should_skip_cached_url(&self, url: &str) -> bool {
-        if let Some(site) = Site::read_into(url, &self.database) {
+    pub fn should_skip_cached_url(&self, url: &str) -> Result<bool> {
+        if let Some(site) = Site::read_into(url, &self.database)? {
             let one_day_ago = Utc::now() - chrono::Duration::days(1);
             if site.crawl_time > one_day_ago {
                 trace!("Skipping cached URL: {}", url);
-                return true;
+                return Ok(true);
             }
         }
 
-        return false;
+        return Ok(false);
     }
 
     /// Checks if a URL is allowed to be scraped based on the robots.txt rules.
@@ -267,13 +268,13 @@ impl Crawler {
     /// ## Returns
     ///
     /// A boolean indicating whether the URL is allowed to be scraped.    
-    fn is_allowed_to_scrape(&self, url: &str) -> bool {
+    fn is_allowed_to_scrape(&self, url: &str) -> Result<bool> {
         let parsed_url = Url::parse(url).unwrap();
         let path = parsed_url.path().to_string();
         let domain = parsed_url.host_str().unwrap().to_string();
 
         // Check if robots.txt is already in the database
-        let robots_txt = if let Some(domain_data) = Domain::read_into(&domain, &self.database) {
+        let robots_txt = if let Some(domain_data) = Domain::read_into(&domain, &self.database)? {
             domain_data.robots
         } else {
             // Fetch robots.txt from the domain
@@ -294,7 +295,7 @@ impl Crawler {
 
         trace!("URL: {} - Allowed? {}", url, allowed);
 
-        return allowed;
+        return Ok(allowed);
     }
 
     /// Iterates through the given set of origin links, fetching and processing each link to discover new links.
@@ -335,7 +336,9 @@ impl Crawler {
                 .par_iter()
                 .map(|url| {
                     // Check if site is cached and can be skipped
-                    if self.should_skip_cached_url(url) && !self.is_allowed_to_scrape(url) {
+                    if self.should_skip_cached_url(url).unwrap()
+                        && !self.is_allowed_to_scrape(url).unwrap()
+                    {
                         return None;
                     }
 

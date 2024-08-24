@@ -33,29 +33,38 @@ impl Domain {
     /// or `Ok(None)` if no match is found. If an error occurs during the query or data retrieval,
     /// it returns an `Err`.
     pub fn read_into(domain: &str, database: &Database) -> Result<Option<Self>> {
+        // Declare SQLite Query to get all entries where the domain value is equal to the given domain
         let query = format!(
             "SELECT crawl_time, robots FROM domains WHERE domain = '{}'",
             domain
         );
 
+        // Prepare Query
         let mut statement = database.prepare(&query)?;
 
+        // Iterate over the rows returned by the query (should only be one, but need to return none
+        // if no rows are returned)
         while let sqlite::State::Row = statement
             .next()
             .context("Failed to execute the SQL query")?
         {
+            // Read the crawl time from the first column of the current row
             let crawl_time_str: String = statement
                 .read::<String, usize>(0)
                 .context("Failed to read crawl_time from the database")?;
+
+            // Read the domain's robots.txt from the second column of the current row
             let robots: String = statement
                 .read::<String, usize>(1)
                 .context("Failed to read robots from the database")?
                 .replace("''", "'");
 
+            // Parse the crawl time string into a DateTime<Utc> object
             let crawl_time = DateTime::parse_from_rfc3339(&crawl_time_str)
                 .context("Failed to parse crawl_time as RFC 3339")?
                 .with_timezone(&Utc);
 
+            // Return a `Domain` instance with the retrieved data
             return Ok(Some(Self {
                 domain: domain.to_string(),
                 crawl_time,

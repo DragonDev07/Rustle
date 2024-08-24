@@ -52,7 +52,7 @@ impl Database {
     ///   - `robots`: A text field that stores the robots.txt content of the domain.
     ///
     /// This function logs trace messages indicating the progress of the table setup.    
-    pub fn setup(&self) {
+    pub fn setup(&self) -> Result<()> {
         trace!("Setting up SQLite table 'sites'");
         self.conn
             .execute(
@@ -63,7 +63,7 @@ impl Database {
                     links_to TEXT
                 );"#,
             )
-            .context("Failed to setup SQLite table 'sites'");
+            .context("Failed to setup SQLite table 'sites'")?;
 
         trace!("Setting up SQLite table 'domains'");
         self.conn
@@ -75,7 +75,9 @@ impl Database {
                     robots TEXT
                 );"#,
             )
-            .context("Failed to setup SQLite table 'domains'");
+            .context("Failed to setup SQLite table 'domains'")?;
+
+        return Ok(());
     }
 
     /// Prepares an SQLite statement for execution.

@@ -15,7 +15,7 @@ mod spider;
 fn main() {
     // Get Config Values
     info!("Getting config values");
-    let config = config::Config::new();
+    let config = config::Config::new().unwrap();
 
     // Start Runtime & Init Logger
     info!("Initializing rustle webcrawler");
@@ -23,7 +23,8 @@ fn main() {
     pretty_env_logger::init();
 
     // Declare Crawler
-    let crawler = spider::Crawler::new(config.origin_url, config.depth, &config.database_name);
+    let crawler =
+        spider::Crawler::new(config.origin_url, config.depth, &config.database_name).unwrap();
 
     // Run Crawler
     crawler.crawl();

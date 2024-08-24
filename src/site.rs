@@ -1,4 +1,5 @@
 use crate::database::Database;
+use anyhow::{Context, Result};
 use chrono::prelude::*;
 use log::info;
 use std::collections::HashSet;
@@ -27,41 +28,50 @@ impl std::fmt::Display for Site {
 }
 
 impl Site {
-    /// Reads a `Site` from the database based on the given URL.
+    /// Reads a `Site` from the database based on the given domain.
     ///
     /// This function queries the database for a site with the specified URL.
-    /// If a matching site is found, it constructs a `Site` instance with the retrieved data.
+    /// If a matching domain is found, it constructs a `Site` instance with the retrieved data.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// * `url` - A string slice that holds the URL of the site to be read.
     /// * `database` - A reference to the `Database` from which the site will be read.
     ///
-    /// ## Returns
+    /// # Returns
     ///
-    /// An `Option<Self>` which is `Some(Site)` if a matching site is found, or `None` if no match is found.
-    pub fn read_into(url: &str, database: &Database) -> Option<Self> {
-        // Declare SQLite Query to get all entries where the URL valie equal to the given URL
+    /// A `Result<Option<Self>>` which is `Ok(Some(Site))` if a matching site is found,
+    /// or `Ok(None)` if no match is found. If an error occurs during the query or data retrieval,
+    /// it returns an `Err`.
+    pub fn read_into(url: &str, database: &Database) -> Result<Option<Self>> {
+        // Declare SQLite Query to get all entries where the URL value is equal to the given URL
         let query = format!(
             "SELECT crawl_time, links_to FROM sites WHERE url = '{}'",
             url.replace("'", "''")
         );
 
         // Prepare Query
-        let mut statement = database.prepare(&query).unwrap();
+        let mut statement = database.prepare(&query)?;
 
         // Iterate over the rows returned by the query (should only be one, but need to return none
         // if no rows are returned)
-        while let sqlite::State::Row = statement.next().unwrap() {
+        while let sqlite::State::Row = statement
+            .next()
+            .context("Failed to execute the SQL query")?
+        {
             // Read the crawl time from the first column of the current row
-            let crawl_time_str: String = statement.read::<String, usize>(0).unwrap();
+            let crawl_time_str: String = statement
+                .read::<String, usize>(0)
+                .context("Failed to read crawl_time from the database")?;
 
             // Read the links to other sites from the second column of the current row
-            let links_to_str: String = statement.read::<String, usize>(1).unwrap();
+            let links_to_str: String = statement
+                .read::<String, usize>(1)
+                .context("Failed to read links_to from the database")?;
 
             // Parse the crawl time string into a DateTime<Utc> object
             let crawl_time = DateTime::parse_from_rfc3339(&crawl_time_str)
-                .unwrap()
+                .context("Failed to parse crawl_time as RFC 3339")?
                 .with_timezone(&Utc);
 
             // Split the links_to string by commas and collect them into a HashSet
@@ -76,15 +86,15 @@ impl Site {
             };
 
             // Return a `Site` instance with the retrieved data
-            return Some(Self {
+            return Ok(Some(Self {
                 url: url.to_string().replace("''", "'"),
                 crawl_time,
                 links_to,
-            });
+            }));
         }
 
         // If no rows are retrieved by the query, return None
-        return None;
+        return Ok(None);
     }
 
     /// Writes the `Site` instance into the database.
@@ -93,7 +103,7 @@ impl Site {
     /// formats the `crawl_time` field into an RFC 3339 string, and then inserts or
     /// replaces the site record in the database with the current `Site` instance's data.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// * `database` - A reference to the `Database` where the site will be written.
     pub fn write_into(&self, database: &Database) {
@@ -123,13 +133,26 @@ impl Site {
     ///
     /// This function prepares and executes a SQL query to count the number of entries
     /// in the `sites` table and logs the result using the `info` log level.
-    pub fn summarize_site_table(database: &Database) {
+    ///
+    /// # Arguments
+    ///
+    /// * `database` - A reference to the `Database` where the domain will be summarized.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<()>` which is `Ok(())` if the operation is successful, or an `Err` if an error occurs.
+    pub fn summarize_site_table(database: &Database) -> Result<()> {
         let query = "SELECT COUNT(*) FROM sites";
         let mut statement = database.prepare(query).unwrap();
-        let _ = statement.next();
+        let _ = statement
+            .next()
+            .context("Failed to execute the SQL query")?;
 
-        let count = statement.read::<i64, usize>(0).unwrap();
+        let count = statement
+            .read::<i64, usize>(0)
+            .context("Failed to read the count from the database")?;
 
         info!("{} Entries in site table", count);
+        return Ok(());
     }
 }
